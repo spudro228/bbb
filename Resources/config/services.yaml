@@ -1,0 +1,42 @@
+parameters:
+  slack_webhook_token: '%env(SLACK_WEBHOOK_VERIFICATION_TOKEN)%'
+  slack_api_authorization_token: '%env(SLACK_API_AUTH_TOKEN)%'
+
+services:
+  _defaults:
+    autowire: true
+    autoconfigure: true
+    public: false
+
+
+  Infra\InfraBot\:
+    resource: '../../{Application,Command,Infrastructure}'
+    exclude: '../../{DependencyInjection,tests,InfraBotBundle.php}'
+
+
+  Infra\InfraBot\Infrastructure\WebHookForSlackEvent:
+    arguments:
+      - '%slack_webhook_token%'
+    tags: ['controller.service_arguments']
+
+  guzzle_client.default:
+    class: GuzzleHttp\Client
+
+  Infra\InfraBot\Infrastructure\SlackMessenger:
+    arguments:
+      $slackAuthorizationToken: '%slack_api_authorization_token%'
+      $client: '@guzzle_client.default'
+
+  null_task_manager:
+    class: Infra\InfraBot\Infrastructure\NullTaskManager
+
+  JiraRestApi\Issue\IssueService: ~
+  JiraRestApi\User\UserService: ~
+
+  Infra\InfraBot\Application\TaskManagerInterface: '@Infra\InfraBot\Infrastructure\JiraTaskManager'
+  Infra\InfraBot\Infrastructure\JiraTaskManager: ~
+
+  Infra\InfraBot\Application\CreateTaskInJiraFromSlackMessage:
+    public: true
+    arguments: ['@Infra\InfraBot\Infrastructure\JiraTaskManager',
+                '@Infra\InfraBot\Infrastructure\SlackMessenger']
